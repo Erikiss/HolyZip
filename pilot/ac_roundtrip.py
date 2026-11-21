@@ -7,7 +7,8 @@
    (b) one full-sequence ("teacher forced") forward pass - the fast way to
        encode, which a decoder cannot reproduce because it must go token by token,
    (c) the incremental path with a different thread count.
-   Any position whose table differs would desynchronise a real decoder.
+   Any position whose table differs can desynchronise a real decoder; for (b)
+   we also run that decode for real and report the first wrong token.
 """
 from __future__ import annotations
 
@@ -30,15 +31,13 @@ class Stepper:
     """Feeds tokens one at a time and returns the next-token frequency table."""
 
     def __init__(self, model, start_id: int) -> None:
-        self.model, self.past = model, None
+        self.model, self.cache = model, None
         self.next_input = start_id
 
     @torch.no_grad()
     def table(self) -> np.ndarray:
-        out = self.model(
-            input_ids=torch.tensor([[self.next_input]]), past_key_values=self.past, use_cache=True
-        )
-        self.past = out.past_key_values
+        out = self.model(input_ids=torch.tensor([[self.next_input]]), cache=self.cache, use_cache=True)
+        self.cache = out.cache
         probs = torch.softmax(out.logits[0, -1].double(), dim=-1).numpy()
         return freqs_from_probs(probs)
 
@@ -55,7 +54,7 @@ def compress(model, start_id, ids, trace=None):
         enc.encode(lo, int(cum[t]), int(cum[-1]))
         ideal += -math.log2(f[t] / cum[-1])
         if trace is not None:
-            trace.append((hashlib.blake2b(f.tobytes(), digest_size=16).digest(), lo, int(cum[t])))
+            trace.append((hashlib.blake2b(f.tobytes(), digest_size=16).digest(), lo, int(cum[t]), int(cum[-1])))
         step.push(t)
     return struct.pack("<I", len(ids)) + enc.finish(), ideal
 
@@ -82,10 +81,30 @@ def teacher_forced_trace(model, start_id, ids, chunk=64):
             f = freqs_from_probs(probs[j])
             cum = np.cumsum(f)
             t = ids[a + j]
-            trace.append(
-                (hashlib.blake2b(f.tobytes(), digest_size=16).digest(), int(cum[t - 1]) if t else 0, int(cum[t]))
-            )
+            lo = int(cum[t - 1]) if t else 0
+            trace.append((hashlib.blake2b(f.tobytes(), digest_size=16).digest(), lo, int(cum[t]), int(cum[-1])))
     return trace
+
+
+def cross_path_decode(model, start_id, ids, trace_tf):
+    """Encode with the teacher-forced tables, decode token by token.
+
+    This is what happens if the encoder takes the fast batched path. Returns the
+    index of the first wrongly decoded token (None if the decode survives).
+    """
+    enc = Encoder()
+    for _, lo, hi, total in trace_tf:
+        enc.encode(lo, hi, total)
+    dec, step = Decoder(enc.finish()), Stepper(model, start_id)
+    for i, want in enumerate(ids):
+        try:
+            got = dec.decode(np.cumsum(step.table()))
+        except IndexError:
+            return i
+        if got != want:
+            return i
+        step.push(got)
+    return None
 
 
 def diff(a, b):
@@ -131,6 +150,7 @@ def main():
     trace_b: list = []
     compress(model, start_id, ids, trace_b)
     trace_tf = teacher_forced_trace(model, start_id, ids)
+    first_wrong = cross_path_decode(model, start_id, ids, trace_tf)
     torch.set_num_threads(args.alt_threads)
     trace_c: list = []
     compress(model, start_id, ids, trace_c)
@@ -147,6 +167,9 @@ def main():
         determinism=dict(
             same_path_repeat=diff(trace_a, trace_b),
             incremental_vs_teacher_forced=diff(trace_a, trace_tf),
+            teacher_forced_encode_then_incremental_decode=dict(
+                decoded_correctly=first_wrong is None, first_wrong_token=first_wrong
+            ),
             **{f"threads_{args.threads}_vs_{args.alt_threads}": diff(trace_a, trace_c)},
         ),
     )
