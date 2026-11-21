@@ -2,7 +2,7 @@
 # Runs the pilot measurements in priority order (CPU-only, resumable:
 # chapters already present in results/llm_bits.jsonl are skipped).
 # Secondary experiments use only the six New Testament chapters of the sample
-# so that the whole queue fits into about an hour on four CPU cores.
+# so that the whole queue fits into about 1.5 hours on four CPU cores.
 set -u
 cd "$(dirname "$0")/.."
 export HF_HOME="${HF_HOME:-$PWD/data/hf}" HF_HUB_DISABLE_TELEMETRY=1 TOKENIZERS_PARALLELISM=false
@@ -28,4 +28,10 @@ run --model $M --mode uncond --sample famous --translations eng-kjv2006
 run --model Qwen/Qwen3.5-0.8B --mode uncond --nt-only --translations eng-kjv2006,deu1912
 # 6. larger model with pivot on the low-resource language
 run --model $M --mode cond --nt-only --pivot eng-kjv2006 --translations aai
+# 7. follow-ups prompted by the review: Hebrew scored in the NFC form the model
+#    was trained on, the larger model on all twelve chapters, and the larger
+#    model with a pivot on a language it knows
+run --model $S --mode uncond --nfc --translations hboWLC
+run --model $M --mode uncond --translations eng-kjv2006,deu1912
+run --model $M --mode cond --nt-only --pivot eng-kjv2006 --translations deu1912
 echo QUEUE_DONE

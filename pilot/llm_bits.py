@@ -19,6 +19,7 @@ import argparse
 import json
 import math
 import time
+import unicodedata
 
 import torch
 from transformers import AutoModelForCausalLM
@@ -33,9 +34,16 @@ SAMPLE_FILE = RESULTS / "sample.json"
 OUT = RESULTS / "llm_bits.jsonl"
 
 
-def build_segments(tid, chapter, pivot, n_prefix):
-    """Return [(text, counted)] for one chapter. Text pieces end with a newline."""
+def build_segments(tid, chapter, pivot, n_prefix, nfc=False):
+    """Return [(text, counted)] for one chapter. Text pieces end with a newline.
+
+    With ``nfc`` the target lines are NFC-normalised first: that is the form the
+    model saw in training, but restoring the original bytes then needs a side
+    channel that is NOT charged here.
+    """
     target = load_vpl(tid)
+    if nfc:
+        target = {k: [(i, unicodedata.normalize("NFC", line)) for i, line in v] for k, v in target.items()}
     flat, start = [], {}
     for key, lines in target.items():
         start[key] = len(flat)
@@ -92,6 +100,7 @@ def main():
     ap.add_argument("--sample", default="main", help="key in results/sample.json")
     ap.add_argument("--prefix-lines", type=int, default=None)
     ap.add_argument("--nt-only", action="store_true", help="restrict the sample to its New Testament chapters")
+    ap.add_argument("--nfc", action="store_true", help="score the NFC-normalised text (side channel not charged)")
     ap.add_argument("--threads", type=int, default=4)
     args = ap.parse_args()
     if args.mode == "cond" and not args.pivot:
@@ -106,11 +115,13 @@ def main():
     chapters = [tuple(c) for c in json.loads(SAMPLE_FILE.read_text())[args.sample]]
     if args.nt_only:
         chapters = [c for c in chapters if c[0] in NT_BOOKS]
+    form = "nfc" if args.nfc else "raw"
     done = set()
     if OUT.exists():
         for line in OUT.read_text().splitlines():
             r = json.loads(line)
-            done.add((r["model"], r["mode"], r["pivot"], r["sample"], r["tid"], r["book"], r["chapter"]))
+            done.add((r["model"], r["mode"], r["pivot"], r["sample"], r["tid"], r["book"], r["chapter"],
+                      r.get("text_form", "raw"), r.get("prefix_lines", 6 if r["mode"] == "cond" else 12)))
 
     tok = load_tokenizer(args.model)
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.float32).eval()
@@ -120,17 +131,18 @@ def main():
         assert tid in TRANSLATIONS, tid
         have = load_vpl(tid)
         for book, chap in chapters:
-            key = (args.model, args.mode, args.pivot, args.sample, tid, book, chap)
+            key = (args.model, args.mode, args.pivot, args.sample, tid, book, chap, form, n_prefix)
             if key in done or (book, chap) not in have:
                 continue
             t0 = time.time()
-            segs, matched, n_verses = build_segments(tid, (book, chap), args.pivot, n_prefix)
+            segs, matched, n_verses = build_segments(tid, (book, chap), args.pivot, n_prefix, args.nfc)
             bits, n_bytes, n_tok, n_ctx, lossless = score(model, tok, segs, start_id)
             rec = dict(
                 model=args.model, mode=args.mode, pivot=args.pivot, sample=args.sample,
                 tid=tid, book=book, chapter=chap, verses=n_verses, pivot_matched=matched,
                 bits=round(bits, 2), bytes=n_bytes, tokens=n_tok, ctx_tokens=n_ctx,
-                lossless_tokenization=lossless, secs=round(time.time() - t0, 2),
+                lossless_tokenization=lossless, text_form=form, prefix_lines=n_prefix,
+                secs=round(time.time() - t0, 2),
             )
             with open(OUT, "a") as fh:
                 fh.write(json.dumps(rec) + "\n")

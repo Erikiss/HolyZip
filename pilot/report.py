@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import random
 from collections import Counter
 
 from common import RESULTS, TRANSLATIONS, VPL
@@ -21,8 +20,8 @@ def load():
     return rows, base
 
 
-def select(rows, chapters=None, **where):
-    sel = [r for r in rows if all(r[k] == v for k, v in where.items())]
+def select(rows, chapters=None, text_form="raw", **where):
+    sel = [r for r in rows if r.get("text_form", "raw") == text_form and all(r[k] == v for k, v in where.items())]
     if chapters is not None:
         sel = [r for r in sel if (r["book"], r["chapter"]) in chapters]
     return sel
@@ -52,17 +51,29 @@ def weighted(sel, share_nt):
     return (1 - share_nt) * pooled(ot) + share_nt * pooled(nt)
 
 
-def interval(sel, share_nt, reps=4000):
-    """95% bootstrap interval over chapters (resampled within OT and NT)."""
-    rng = random.Random(1)
+T975 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+        11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145, 15: 2.131, 16: 2.120, 18: 2.101, 20: 2.086, 22: 2.074}
+
+
+def interval(sel, share_nt):
+    """95% interval of the OT/NT-weighted bits/byte.
+
+    Chapters are the sampling units; each testament is a stratum with a ratio
+    estimator (sum bits / sum bytes) and its linearised variance.
+    """
     ot = [r for r in sel if r["book"] not in NT_BOOKS]
     nt = [r for r in sel if r["book"] in NT_BOOKS]
-    vals = []
-    for _ in range(reps):
-        draw = [rng.choice(g) for g in (ot, nt) if g for _ in g]
-        vals.append(weighted(draw, share_nt))
-    vals.sort()
-    return vals[int(0.025 * reps)], vals[int(0.975 * reps)]
+    strata = [(g, w) for g, w in ((ot, 1 - share_nt), (nt, share_nt)) if g]
+    if len(strata) == 1:
+        strata = [(strata[0][0], 1.0)]
+    var, df = 0.0, 0
+    for g, w in strata:
+        n, ratio, nbytes = len(g), pooled(g), sum(r["bytes"] for r in g)
+        var += w * w * n / (n - 1) * sum((r["bits"] - ratio * r["bytes"]) ** 2 for r in g) / nbytes**2
+        df += n - 1
+    half = T975.get(df, 2.0) * var**0.5
+    mid = weighted(sel, share_nt)
+    return mid - half, mid + half
 
 
 def short(model: str) -> str:
@@ -85,22 +96,23 @@ def main():
         print(f"| {t} | {TRANSLATIONS[t][0]} | {r['bytes']:,} | " + " | ".join(f"{8 * r[c] / r['bytes']:.3f}" for c in codecs) + " |")
 
     print(f"\n### B. LLM arithmetic-coding cost without cross-lingual context ({short(small)}, random chapters)\n")
-    print("| translation | language | chapters (OT+NT) | tokens/byte | LLM bits/byte, sample | LLM bits/byte, weighted to file "
+    print("| translation | language | chapters (OT+NT) | tokens/byte | LLM bits/byte, sample | LLM bits/byte, OT/NT-weighted "
           "[95% interval] | best of the five classical codecs, full file | LLM as share of that |")
     print("|---|---|--:|--:|--:|--:|--:|--:|")
     for t in TRANSLATIONS:
-        sel = select(rows, model=small, tid=t, **unc)
-        if not sel:
-            continue
-        share = nt_share(t)
-        w = weighted(sel, share)
-        lo, hi = interval(sel, share)
-        cl = 8 * best[t] / per[t]["bytes"]
-        n_nt = sum(r["book"] in NT_BOOKS for r in sel)
-        assert all(r["lossless_tokenization"] for r in sel), t
-        print(f"| {t} | {TRANSLATIONS[t][0]} | {len(sel) - n_nt}+{n_nt} | "
-              f"{sum(r['tokens'] for r in sel) / sum(r['bytes'] for r in sel):.3f} | {pooled(sel):.3f} | "
-              f"{w:.3f} [{lo:.2f}–{hi:.2f}] | {cl:.3f} | {100 * w / cl:.0f}% [{100 * lo / cl:.0f}–{100 * hi / cl:.0f}] |")
+        for form, label in (("raw", t), ("nfc", f"{t}, NFC-normalised text (restoring the original bytes not charged)")):
+            sel = select(rows, text_form=form, model=small, tid=t, **unc)
+            if not sel:
+                continue
+            share = nt_share(t)
+            w = weighted(sel, share)
+            lo, hi = interval(sel, share)
+            cl = 8 * best[t] / per[t]["bytes"]
+            n_nt = sum(r["book"] in NT_BOOKS for r in sel)
+            assert all(r["lossless_tokenization"] for r in sel), t
+            print(f"| {label} | {TRANSLATIONS[t][0]} | {len(sel) - n_nt}+{n_nt} | "
+                  f"{sum(r['tokens'] for r in sel) / sum(r['bytes'] for r in sel):.3f} | {pooled(sel):.3f} | "
+                  f"{w:.3f} [{lo:.2f}–{hi:.2f}] | {cl:.3f} | {100 * w / cl:.0f}% [{100 * lo / cl:.0f}–{100 * hi / cl:.0f}] |")
 
     print("\n### C. Same verse of an already-decoded translation in the context (identical chapters, bits per byte)\n")
     print("| target | pivot in context | model | chapters | alone | with pivot | change | verses with pivot |")
