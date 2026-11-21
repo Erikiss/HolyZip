@@ -17,7 +17,7 @@ TRANSLATIONS = OrderedDict(
         ("eng-kjv2006", ("English", "King James Version", "public domain")),
         ("engwebp", ("English", "World English Bible", "public domain")),
         ("deu1912", ("German", "Luther 1912", "public domain")),
-        ("deuelbbk", ("German", "Elberfelder (ELBBK)", "© 2019 VdcG, redistributable")),
+        ("deuelbbk", ("German", "Elberfelder (revised, bibelkommentare.de)", "© 2019 VdcG, CC BY-NC-ND")),
         ("fraLSG", ("French", "Louis Segond 1910", "public domain")),
         ("spaRV1909", ("Spanish", "Reina-Valera 1909", "public domain")),
         ("latVUC", ("Latin", "Clementine Vulgate", "public domain")),

@@ -14,7 +14,8 @@ PPMD = "PPMd (best order 6-16)"
 
 def load():
     rows = [json.loads(l) for l in (RESULTS / "llm_bits.jsonl").read_text().splitlines()]
-    keys = Counter((r["model"], r["mode"], r["pivot"], r["sample"], r["tid"], r["book"], r["chapter"]) for r in rows)
+    keys = Counter((r["model"], r["mode"], r["pivot"], r["sample"], r["tid"], r["book"], r["chapter"],
+                    r.get("text_form", "raw")) for r in rows)
     assert max(keys.values()) == 1, "duplicate records in llm_bits.jsonl"
     base = json.loads((RESULTS / "baselines.json").read_text())
     return rows, base
@@ -95,24 +96,26 @@ def main():
     for t, r in per.items():
         print(f"| {t} | {TRANSLATIONS[t][0]} | {r['bytes']:,} | " + " | ".join(f"{8 * r[c] / r['bytes']:.3f}" for c in codecs) + " |")
 
-    print(f"\n### B. LLM arithmetic-coding cost without cross-lingual context ({short(small)}, random chapters)\n")
-    print("| translation | language | chapters (OT+NT) | tokens/byte | LLM bits/byte, sample | LLM bits/byte, OT/NT-weighted "
-          "[95% interval] | best of the five classical codecs, full file | LLM as share of that |")
-    print("|---|---|--:|--:|--:|--:|--:|--:|")
-    for t in TRANSLATIONS:
-        for form, label in (("raw", t), ("nfc", f"{t}, NFC-normalised text (restoring the original bytes not charged)")):
-            sel = select(rows, text_form=form, model=small, tid=t, **unc)
-            if not sel:
-                continue
-            share = nt_share(t)
-            w = weighted(sel, share)
-            lo, hi = interval(sel, share)
-            cl = 8 * best[t] / per[t]["bytes"]
-            n_nt = sum(r["book"] in NT_BOOKS for r in sel)
-            assert all(r["lossless_tokenization"] for r in sel), t
-            print(f"| {label} | {TRANSLATIONS[t][0]} | {len(sel) - n_nt}+{n_nt} | "
-                  f"{sum(r['tokens'] for r in sel) / sum(r['bytes'] for r in sel):.3f} | {pooled(sel):.3f} | "
-                  f"{w:.3f} [{lo:.2f}–{hi:.2f}] | {cl:.3f} | {100 * w / cl:.0f}% [{100 * lo / cl:.0f}–{100 * hi / cl:.0f}] |")
+    for m in [x for x in models if "Base" in x]:
+        print(f"\n### B. LLM arithmetic-coding cost without cross-lingual context ({short(m)}, random chapters)\n")
+        print("| translation | language | chapters (OT+NT) | tokens/byte | LLM bits/byte, sample | LLM bits/byte, OT/NT-weighted "
+              "[95% interval] | best of the five classical codecs, full file | LLM as share of that |")
+        print("|---|---|--:|--:|--:|--:|--:|--:|")
+        for t in TRANSLATIONS:
+            for form, label in (("raw", t), ("nfc", f"{t}, NFC-normalised text (restoring the original bytes not charged)")):
+                sel = select(rows, text_form=form, model=m, tid=t, **unc)
+                share = nt_share(t) if sel else 0
+                n_nt = sum(r["book"] in NT_BOOKS for r in sel)
+                # a whole-file estimate needs chapters from every testament the file contains
+                if not sel or (0 < share < 1 and n_nt in (0, len(sel))):
+                    continue
+                w = weighted(sel, share)
+                lo, hi = interval(sel, share)
+                cl = 8 * best[t] / per[t]["bytes"]
+                assert all(r["lossless_tokenization"] for r in sel), t
+                print(f"| {label} | {TRANSLATIONS[t][0]} | {len(sel) - n_nt}+{n_nt} | "
+                      f"{sum(r['tokens'] for r in sel) / sum(r['bytes'] for r in sel):.3f} | {pooled(sel):.3f} | "
+                      f"{w:.3f} [{lo:.2f}–{hi:.2f}] | {cl:.3f} | {100 * w / cl:.0f}% [{100 * lo / cl:.0f}–{100 * hi / cl:.0f}] |")
 
     print("\n### C. Same verse of an already-decoded translation in the context (identical chapters, bits per byte)\n")
     print("| target | pivot in context | model | chapters | alone | with pivot | change | verses with pivot |")
@@ -157,15 +160,18 @@ def main():
             print(f"| {t} | {short(m)} | " + " | ".join(f"{by[b]:.3f}" for b in ("GEN", "PSA", "JOH", "1CO"))
                   + f" | {pooled(fam):.3f} | {pooled(rnd):.3f} | {len(rnd)} |")
 
-    print("\n### F. Classical compressors with two translations in one stream (bytes)\n")
-    print("| pair | xz separate | xz solid | PPMd separate | PPMd solid |")
-    print("|---|--:|--:|--:|--:|")
-    for name, g in base["solid"].items():
-        if name.startswith("all"):
-            continue
-        s, o = g["separate"], g["solid"]
-        print(f"| {name} | {s['xz -9e']:,} | {o['xz -9e']:,} | {s[PPMD]:,} | {o[PPMD]:,} |")
-
+    print("\n### F. Classical compressors with two translations in one stream\n")
+    print("| pair (second file is the one being added) | xz: both separately | xz: one stream | xz saving on the second file "
+          "| PPMd: both separately | PPMd: one stream | PPMd saving on the second file |")
+    print("|---|--:|--:|--:|--:|--:|--:|")
+    second = {"KJV+WEB (same language)": "engwebp", "Luther1912+Elberfelder (same language)": "deuelbbk",
+              "KJV+Luther1912 (different languages)": "deu1912"}
+    for name, tid in second.items():
+        s, o = base["solid"][name]["separate"], base["solid"][name]["solid"]
+        cells = []
+        for codec in ("xz -9e", PPMD):
+            cells += [f"{s[codec]:,}", f"{o[codec]:,}", f"{100 * (s[codec] - o[codec]) / per[tid][codec]:+.0f}%"]
+        print(f"| {name} | " + " | ".join(cells) + " |")
 
 if __name__ == "__main__":
     main()
