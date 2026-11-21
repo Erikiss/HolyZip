@@ -96,6 +96,10 @@ def main():
     args = ap.parse_args()
     if args.mode == "cond" and not args.pivot:
         ap.error("--mode cond needs --pivot")
+    if args.mode == "uncond" and args.pivot:
+        ap.error("--pivot only makes sense with --mode cond")
+    if args.pivot and args.pivot in args.translations.split(","):
+        ap.error("the pivot must not be one of the target translations")
     n_prefix = args.prefix_lines if args.prefix_lines is not None else (6 if args.mode == "cond" else 12)
 
     torch.set_num_threads(args.threads)
