@@ -107,14 +107,20 @@ def cross_path_decode(model, start_id, ids, trace_tf):
     return None
 
 
+def ideal_bytes(trace) -> float:
+    return sum(-math.log2((hi - lo) / total) for _, lo, hi, total in trace) / 8
+
+
 def diff(a, b):
     tables = [i for i, (x, y) in enumerate(zip(a, b)) if x[0] != y[0]]
     intervals = [i for i, (x, y) in enumerate(zip(a, b)) if x[1:] != y[1:]]
+    cost = [abs(math.log2((x[2] - x[1]) / x[3]) - math.log2((y[2] - y[1]) / y[3])) for x, y in zip(a, b)]
     return dict(
         positions=len(a),
         tables_differ=len(tables),
         first_table_mismatch=tables[0] if tables else None,
         target_interval_differs=len(intervals),
+        max_abs_diff_of_target_cost_bits=max(cost),
     )
 
 
@@ -158,7 +164,8 @@ def main():
     res = dict(
         model=args.model, tid=args.tid, book=args.book, chapter=args.chapter,
         original_bytes=len(raw), tokens=len(ids), compressed_bytes=len(blob),
-        ideal_bytes=round(ideal_bits / 8, 1), bits_per_byte=round(8 * len(blob) / len(raw), 4),
+        ideal_bytes=round(ideal_bits / 8, 1), ideal_bytes_teacher_forced=round(ideal_bytes(trace_tf), 1),
+        bits_per_byte=round(8 * len(blob) / len(raw), 4),
         lossless_roundtrip=restored == raw,
         sha256_original=hashlib.sha256(raw).hexdigest(),
         sha256_restored=hashlib.sha256(restored).hexdigest(),
