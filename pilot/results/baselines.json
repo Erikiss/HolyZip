@@ -1,0 +1,186 @@
+{
+ "per_translation": {
+  "eng-kjv2006": {
+   "bytes": 4490049,
+   "bzip2 -9": 962269,
+   "zstd -22 --long": 1026348,
+   "brotli -q11": 1013813,
+   "xz -9e": 1010480,
+   "PPMd (best order 6-16)": 817273
+  },
+  "engwebp": {
+   "bytes": 4327953,
+   "bzip2 -9": 925199,
+   "zstd -22 --long": 985817,
+   "brotli -q11": 971171,
+   "xz -9e": 967816,
+   "PPMd (best order 6-16)": 786040
+  },
+  "deu1912": {
+   "bytes": 4384884,
+   "bzip2 -9": 997347,
+   "zstd -22 --long": 1058365,
+   "brotli -q11": 1046974,
+   "xz -9e": 1040292,
+   "PPMd (best order 6-16)": 850565
+  },
+  "deuelbbk": {
+   "bytes": 4594362,
+   "bzip2 -9": 1029116,
+   "zstd -22 --long": 1074591,
+   "brotli -q11": 1062305,
+   "xz -9e": 1056284,
+   "PPMd (best order 6-16)": 866618
+  },
+  "fraLSG": {
+   "bytes": 4604967,
+   "bzip2 -9": 999394,
+   "zstd -22 --long": 1034502,
+   "brotli -q11": 1020376,
+   "xz -9e": 1013896,
+   "PPMd (best order 6-16)": 822075
+  },
+  "spaRV1909": {
+   "bytes": 4236102,
+   "bzip2 -9": 982893,
+   "zstd -22 --long": 1044435,
+   "brotli -q11": 1026590,
+   "xz -9e": 1023288,
+   "PPMd (best order 6-16)": 838686
+  },
+  "latVUC": {
+   "bytes": 4378121,
+   "bzip2 -9": 1116049,
+   "zstd -22 --long": 1186558,
+   "brotli -q11": 1171351,
+   "xz -9e": 1165392,
+   "PPMd (best order 6-16)": 968262
+  },
+  "russyn": {
+   "bytes": 6362870,
+   "bzip2 -9": 1019734,
+   "zstd -22 --long": 1112732,
+   "brotli -q11": 1102999,
+   "xz -9e": 1090352,
+   "PPMd (best order 6-16)": 897566
+  },
+  "cmn-cu89s": {
+   "bytes": 3516266,
+   "bzip2 -9": 885841,
+   "zstd -22 --long": 926935,
+   "brotli -q11": 920007,
+   "xz -9e": 904652,
+   "PPMd (best order 6-16)": 772380
+  },
+  "kor": {
+   "bytes": 4727466,
+   "bzip2 -9": 901929,
+   "zstd -22 --long": 990889,
+   "brotli -q11": 990805,
+   "xz -9e": 976416,
+   "PPMd (best order 6-16)": 778685
+  },
+  "vie1934": {
+   "bytes": 5409631,
+   "bzip2 -9": 974581,
+   "zstd -22 --long": 1081639,
+   "brotli -q11": 1077285,
+   "xz -9e": 1063104,
+   "PPMd (best order 6-16)": 848195
+  },
+  "hin2017": {
+   "bytes": 9831378,
+   "bzip2 -9": 1058942,
+   "zstd -22 --long": 1169319,
+   "brotli -q11": 1183570,
+   "xz -9e": 1152188,
+   "PPMd (best order 6-16)": 889881
+  },
+  "swhulb": {
+   "bytes": 4282912,
+   "bzip2 -9": 1030126,
+   "zstd -22 --long": 1090024,
+   "brotli -q11": 1073914,
+   "xz -9e": 1069976,
+   "PPMd (best order 6-16)": 892561
+  },
+  "yor": {
+   "bytes": 5619607,
+   "bzip2 -9": 978565,
+   "zstd -22 --long": 1093013,
+   "brotli -q11": 1083490,
+   "xz -9e": 1074296,
+   "PPMd (best order 6-16)": 845676
+  },
+  "hboWLC": {
+   "bytes": 5593310,
+   "bzip2 -9": 904679,
+   "zstd -22 --long": 996284,
+   "brotli -q11": 973417,
+   "xz -9e": 962048,
+   "PPMd (best order 6-16)": 758588
+  },
+  "grcbyz": {
+   "bytes": 1755691,
+   "bzip2 -9": 259836,
+   "zstd -22 --long": 306621,
+   "brotli -q11": 304631,
+   "xz -9e": 301480,
+   "PPMd (best order 6-16)": 232352
+  },
+  "aai": {
+   "bytes": 1234280,
+   "bzip2 -9": 260592,
+   "zstd -22 --long": 292353,
+   "brotli -q11": 288444,
+   "xz -9e": 288136,
+   "PPMd (best order 6-16)": 230677
+  }
+ },
+ "solid": {
+  "KJV+WEB (same language)": {
+   "bytes": 8818002,
+   "separate": {
+    "xz -9e": 1978296,
+    "PPMd (best order 6-16)": 1603313
+   },
+   "solid": {
+    "xz -9e": 1759944,
+    "PPMd (best order 6-16)": 1457129
+   }
+  },
+  "Luther1912+Elberfelder (same language)": {
+   "bytes": 8979246,
+   "separate": {
+    "xz -9e": 2096576,
+    "PPMd (best order 6-16)": 1717183
+   },
+   "solid": {
+    "xz -9e": 1954412,
+    "PPMd (best order 6-16)": 1613124
+   }
+  },
+  "KJV+Luther1912 (different languages)": {
+   "bytes": 8874933,
+   "separate": {
+    "xz -9e": 2050772,
+    "PPMd (best order 6-16)": 1667838
+   },
+   "solid": {
+    "xz -9e": 2048412,
+    "PPMd (best order 6-16)": 1704085
+   }
+  },
+  "all 17 translations": {
+   "bytes": 79349849,
+   "separate": {
+    "xz -9e": 16160096,
+    "PPMd (best order 6-16)": 13096080
+   },
+   "solid": {
+    "xz -9e": 15773844,
+    "PPMd (best order 6-16)": 13305642
+   }
+  }
+ }
+}
