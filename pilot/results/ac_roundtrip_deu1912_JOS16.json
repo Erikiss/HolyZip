@@ -1,0 +1,45 @@
+{
+ "model": "Qwen/Qwen3.5-0.8B-Base",
+ "tid": "deu1912",
+ "book": "JOS",
+ "chapter": 16,
+ "original_bytes": 1425,
+ "tokens": 422,
+ "compressed_bytes": 249,
+ "ideal_bytes": 244.8,
+ "ideal_bytes_teacher_forced": 244.8,
+ "bits_per_byte": 1.3979,
+ "lossless_roundtrip": true,
+ "sha256_original": "03671542c6183c234cae55595578b06f516cbb9dca9fa04323238995495e06e8",
+ "sha256_restored": "03671542c6183c234cae55595578b06f516cbb9dca9fa04323238995495e06e8",
+ "encode_tok_per_s": 3.6,
+ "decode_tok_per_s": 3.6,
+ "threads": 1,
+ "determinism": {
+  "same_path_repeat": {
+   "positions": 422,
+   "tables_differ": 0,
+   "first_table_mismatch": null,
+   "target_interval_differs": 0,
+   "max_abs_diff_of_target_cost_bits": 0.0
+  },
+  "incremental_vs_teacher_forced": {
+   "positions": 422,
+   "tables_differ": 422,
+   "first_table_mismatch": 0,
+   "target_interval_differs": 422,
+   "max_abs_diff_of_target_cost_bits": 5.850943302476708e-05
+  },
+  "teacher_forced_encode_then_incremental_decode": {
+   "decoded_correctly": false,
+   "first_wrong_token": 1
+  },
+  "threads_1_vs_2": {
+   "positions": 422,
+   "tables_differ": 0,
+   "first_table_mismatch": null,
+   "target_interval_differs": 0,
+   "max_abs_diff_of_target_cost_bits": 0.0
+  }
+ }
+}
